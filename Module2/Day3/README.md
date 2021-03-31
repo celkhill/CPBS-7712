@@ -71,6 +71,7 @@ The computational time and complexity vary depending on the kmer size that was c
 ## Version information
 This is v 0.5 of the DBGContigMaker. Yet to be implemented features in the works are:
 * Error correction of the input reads
+* Reverse complement consideration when reconstructing
 * A more advanced algorithm to search the graph space more efficiently
 * Easier command line interface
     * Ability to run the program with multiple kmer sizes in one command line call
