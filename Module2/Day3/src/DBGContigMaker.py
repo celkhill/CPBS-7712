@@ -170,6 +170,8 @@ def CreateGraphAndSave(reads,kmersize,outname = '../data/DeBruijnGraph'):
         last_kmer = kmer_1[1:]+ kmer_2
         if not last_kmer in node_table:
             ending_node = GraphNode(last_kmer)
+        else:
+            ending_node = node_table[last_kmer]
             ending_node.prev = np.append(ending_node.prev, kmer_1[0])
             node_table[last_kmer] = ending_node
     
@@ -181,6 +183,8 @@ def CreateGraphAndSave(reads,kmersize,outname = '../data/DeBruijnGraph'):
     elif outname.endswith('.dat'):
         with open(outname, 'wb') as fp:
             pickle.dump(node_table,fp)
+    del node_table['kmersize']
+    return node_table
 
 # solve for our query sequence
 def FindQueryInGraph(query_seq,kmersize,node_table):
@@ -229,9 +233,8 @@ def CreateContigFromGraph(solved_nodes,node_table,direction = 'forwards'):
 
     if len(solved_nodes)>0:
         cn = solved_nodes[-1]
-        # print('Extending solution %s...'%direction)
     else:#pick a random starting node TODO: make this better
-        cn = np.random.choie(list(node_table.keys()))
+        cn = np.random.choice(list(node_table.keys()))
     keep_looping = True
     while keep_looping:
         next_na = SelectNextNode(cn, node_table, mode = direction)
@@ -258,7 +261,8 @@ def CreateContigFromGraph(solved_nodes,node_table,direction = 'forwards'):
                     seq = next_na + cn.seq[:-1]
                 print('Sequence %s not found in the node table!'%seq)
                 keep_looping = False
-        if len(solved_nodes) == 5000:
+        #I don't like infinite loops
+        if len(solved_nodes) == 500000:
             keep_looping = False
     return solved_nodes
 
@@ -274,12 +278,12 @@ def ConstructArgs(argv):
     defaults = {'output_folder':'../analysis/',
             'output_filetype': 'json',
             'kmersize':27,
-            'plot_histograms':False,
+            'generate_histograms':False,
             'existing_graph_filename':None,
             'solving_iterations':10,
             'existing_allele': None}
 
-    parser = argparse.ArgumentParser(description='Here are the arguments for the query sequence finder tool:')
+    parser = argparse.ArgumentParser(description='Here are the arguments for the query sequence finder tool:', formatter_class = argparse.ArgumentDefaultsHelpFormatter)
 
     req_group = parser.add_argument_group('Required Arguments','You must specify these arguments.')
     opt_group = parser.add_argument_group('Optional Arguments')
@@ -294,14 +298,14 @@ def ConstructArgs(argv):
             help = 'Filetype to save out the graph and winning contig node objects to. Options are json or dat', default = defaults['output_filetype'])
     opt_group.add_argument('-kmersize',action = 'store',dest = 'kmersize',
             type=int,help = 'Kmersize the De Bruijn Graph will be constructed with.', default = defaults['kmersize'])
-    opt_group.add_argument('-plot_histograms',action='store_true', dest = 'plot_histograms',
-            help = 'Option to generate histograms of the read length and kmer edge degree.', default= defaults['plot_histograms'])
     opt_group.add_argument('-existing_graph_filename',action = 'store',dest = 'existing_graph_filename',
             help='Argument to use an existing graph if one has already been created.',default= defaults['existing_graph_filename'])
     opt_group.add_argument('-solving_iterations',action = 'store',dest='solving_iterations',
             type = int, help='Number of solving iterations to try before selecting the longest contig found.', default = defaults['solving_iterations'])
     opt_group.add_argument('-existing_allele', action = 'store',dest = 'existing_allele',
             help='Argument to use an existing solved allele that has already been created.', default = defaults['existing_allele'])
+    opt_group.add_argument('--generate_histograms',action='store_true', dest = 'generate_histograms',
+            help = 'Option to generate histograms of the read length and kmer edge degree. Simply pass --generate_histograms argument to set to True.', default= defaults['generate_histograms'])
 
     return parser.parse_args(argv)
 
@@ -403,7 +407,7 @@ def RunAllAnalysis(settings):
         if settings.existing_graph_filename is None:
             print('Creating graph with the following attributes:\n\t# of reads: %d\n\tkmersize: %d\n\n'%(len(reads),kmersize))
             outname = path.join(settings.output_folder,'DeBruijnGraph_kmer%d.'%kmersize+ settings.output_filetype)
-            CreateGraphAndSave(reads,kmersize, outname)
+            node_table = CreateGraphAndSave(reads,kmersize, outname)
             print('\nDone creating graph!\n')
         else:
             outname = settings.existing_graph_filename
@@ -426,13 +430,13 @@ def RunAllAnalysis(settings):
             print('Graph loaded!\n\n')
     
         #now let's make some histogram data!
-        if settings.plot_histograms:
+        if settings.generate_histograms:
             #read length histograms
-            read_lengths = [len(x) for x in reads.values]
-            pd.DataFrame(zip(np.histogram(read_lengths,bins=100)),columns=['Counts','Lengths']).to_csv(path.join(settings.output_folder,'ReadLengthHistogram.csv'),index=False)
+            read_lengths = [len(x) for x in reads.values()]
+            pd.DataFrame(np.histogram(read_lengths,bins=100),index=['Counts','Lengths']).T.to_csv(path.join(settings.output_folder,'ReadLengthHistogram.csv'),index=False)
             #kmer histograms
             kmer_degrees = [len(x.next) for x in node_table.values()]
-            pd.DataFrame(zip(np.histogram(kmer_degrees,bins=100)),columns=['Counts','Degree']).to_csv(path.join(settings.output_folder,'KmerDegreeHistogram.csv'),index=False)
+            pd.DataFrame(np.histogram(kmer_degrees,bins=100),index=['Counts','Degree']).T.to_csv(path.join(settings.output_folder,'KmerDegreeHistogram.csv'),index=False)
     
         lengths = []
         best_solved_nodes = ['One']
@@ -453,13 +457,13 @@ def RunAllAnalysis(settings):
             lengths.append(len(all_solved_nodes)+1)
     
     
-        ### Write out the solved contig list of node objects as either a json or a dat file ###
-        if settings.output_filetype == 'json':
-            json.dump(best_solved_nodes,open(path.join(settings.output_folder,'solved_contig.json'),'w'),indent = 2)
-            best_solved_nodes = ParseJson(json.load(open(path.join(settings.output_folder,'solved_contig.json'),'r')))
-        elif settings.output_filetype == 'dat':
-            pickle.dump(best_solved_nodes,open(path.join(settings.output_folder,'solved_contig.dat'),'wb'))
-            best_solved_nodes = pickle.load(open(path.join(settings.output_folder,'solved_contig.dat'),'rb'))
+        # ### Write out the solved contig list of node objects as either a json or a dat file ###
+        # if settings.output_filetype == 'json':
+        #     json.dump(best_solved_nodes,open(path.join(settings.output_folder,'solved_contig.json'),'w'),indent = 2)
+        #     best_solved_nodes = ParseJson(json.load(open(path.join(settings.output_folder,'solved_contig.json'),'r')))
+        # elif settings.output_filetype == 'dat':
+        #     pickle.dump(best_solved_nodes,open(path.join(settings.output_folder,'solved_contig.dat'),'wb'))
+        #     best_solved_nodes = pickle.load(open(path.join(settings.output_folder,'solved_contig.dat'),'rb'))
     
         ### Generate the ALLELES.FASTA file with our "winning" sequence ###
         final_sequence = construct_sequence_from_nodes(best_solved_nodes)
