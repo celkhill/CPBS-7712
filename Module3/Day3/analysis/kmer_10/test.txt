@@ -1,0 +1,19 @@
+    "GAAAAAATG": {
+        "next": [
+            "C"
+        ],
+        "prev": [
+            "T"
+        ],
+        "seq": "GAAAAAATG",
+        "visited": []
+
+    "CATTTTTTC": {
+        "next": [
+            "A"
+        ],
+        "prev": [
+            "G"
+        ],
+        "seq": "CATTTTTTC",
+        "visited": []
