@@ -1,0 +1,34 @@
+Load in READS.fasta as reads
+
+Create a histogram of lengths of reads
+    Raise error if kmersize is < min length of reads
+
+Generate list all kmers of kmersize for each read in reads
+
+Find the unique kmers in list, determine frequency of each unique kmer
+
+For all kmers with frequency < threshold
+    Find kmer with closest Hamming distance with frequency > threshold, this is the corrected_kmer
+    Add degree of kmer to degree of corrected_kmer
+
+Delete all kmers with frequency < threshold from the list
+    
+Create two nodes in graph for each unique kmer
+    First node is the prefix k-1 mer
+    Second node is the suffix k-1 mer
+    Draw edges equal to kmer degree between nodes
+
+Load in QUERY.fasta as query
+
+For each k-1 mer in query
+    find the corresponding node in the graph save to list of solved nodes
+    jump to next k-1 mer by removing edge between current k-1 mer and next k-1 mer
+
+Extend the solution by randomly choosing the next k-1 mer node from the graph that has an edge degree > 1
+    stop solution if no next k-1 mer node has degree > 0
+
+Repeat solution algorithm X times to find longest solved sequence, save as best_solution
+
+Generate output table for all reads by comparing reads substring to best_solution sequence
+    report indices of best_solution sequence that contain read
+    report indices of query sequence that contain read (if any)
