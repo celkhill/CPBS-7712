@@ -1,5 +1,4 @@
 import numpy as np
-from tqdm import tqdm
 import pandas as pd
 from os import path, makedirs
 import pdb
@@ -56,7 +55,7 @@ def CreateDBGraph(kmer_table, kmersize):
     node_table = {}
     #read and parse all our k-mers
     for direction in ['forward','reverse']:
-        for kmer in tqdm(kmer_table):
+        for kmer in kmer_table:
             #account for the reverse direction!
             kmer_degree = kmer_table[kmer]
             if direction == 'reverse':

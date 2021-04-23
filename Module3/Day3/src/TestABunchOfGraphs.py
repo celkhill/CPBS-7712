@@ -3,16 +3,18 @@ import timeit
 import pandas as pd
 
 
-kmersizes = [14, 18, 22, 26,30]
-# kmersizes = [22]
+# kmersizes = [14, 18, 22, 26,30]
+kmersizes = [22]
 execution_times = []
 for kmersize in kmersizes:
     start = timeit.default_timer()
     args = ['-reads_fasta', '../data/READS.fasta',
             '-query_fasta','../data/QUERY.fasta',
-            '-output_folder', '../analysis/kmer_%d'%kmersize,
+            '-output_folder', '../analysis/errors_kmer_%d'%kmersize,
             # '-existing_graph_filename','../analysis/kmer_%d/DeBruijnGraph_kmer%d.json'%(kmersize,kmersize),
             '--save_kmer_table',#'../analysis/kmer_%d/kmertable.json'%kmersize,
+            '-do_error_correction', False,
+            '-output_filetype','json',
             '-kmersize',str(kmersize),
             '-solving_iterations',str(50),
             '--generate_histograms']
